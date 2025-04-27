@@ -51,7 +51,6 @@ pub enum PorterError {
 pub type Result<T> = std::result::Result<T, PorterError>;
 
 #[derive(Deserialize, Serialize, Debug, Clone, Default)]
-#[serde(rename_all = "kebab-case")]
 pub struct GlobalConfig {
   pub default_license: Option<String>,
   pub secrets_scan_level: Option<String>, // e.g., "none", "basic", "aggressive"
@@ -59,7 +58,7 @@ pub struct GlobalConfig {
 }
 
 #[derive(Deserialize, Serialize, Debug, Clone, Copy, PartialEq, Eq, Default, ValueEnum)]
-#[serde(rename_all = "kebab-case")]
+#[serde(rename_all = "snake_case")]
 pub enum HistoryMode {
   #[default]
   CleanSlate,
@@ -67,7 +66,6 @@ pub enum HistoryMode {
 }
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
-#[serde(rename_all = "kebab-case")]
 pub struct ProjectConfig {
   pub internal_repo_path: PathBuf,
   pub project_subdir: PathBuf, // Relative within internal_repo_path

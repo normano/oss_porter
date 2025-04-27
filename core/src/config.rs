@@ -1,5 +1,5 @@
 use crate::{ConfigFile, PorterError, Result};
-use directories::ProjectDirs;
+use directories::{ProjectDirs, UserDirs};
 use std::{
   fs,
   path::{Path, PathBuf},
@@ -7,15 +7,12 @@ use std::{
 
 // Helper function to get the expected config file path
 pub fn get_default_config_path() -> Result<PathBuf> {
-  // Qualifiers reversed for standard directory structure (org.domain.AppName)
-  if let Some(proj_dirs) = ProjectDirs::from("com", "oss-porter", "oss-porter") {
-    // Adjust qualifiers if desired
-    let config_dir = proj_dirs.config_dir();
-    Ok(config_dir.join("config.toml"))
+  if let Some(user_dirs) = UserDirs::new() { // Get user-specific directories
+      let home_dir = user_dirs.home_dir();
+      Ok(home_dir.join(".oss-porter.toml")) // Use a hidden file in home
+      // Or use home_dir.join("oss-porter.toml") if you prefer non-hidden
   } else {
-    Err(PorterError::Config(
-      "Could not determine standard configuration directory.".to_string(),
-    ))
+      Err(PorterError::Config("Could not determine user's home directory.".to_string()))
   }
 }
 

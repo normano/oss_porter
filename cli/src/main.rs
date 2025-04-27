@@ -57,14 +57,14 @@ const DEFAULT_CONFIG_CONTENT: &str = r#"# oss-porter Configuration File
 # default_license = "MIT"  # Optional: Set a default license (e.g., "MIT", "Apache-2.0")
 # secrets_scan_level = "basic" # Optional: Set default scan level ("none", "basic", "aggressive")
 
-[projects]
+#[projects]
 # Example project definition (uncomment and modify):
-# [projects.my-cool-library]
+# [projects.my_cool_library]
 # internal_repo_path = "/path/to/your/internal/monorepo_or_project" # REQUIRED: Absolute or relative path to the source Git repo root
 # project_subdir = "path/relative/to/repo/root/of/the/project" # REQUIRED: Subdirectory within the repo to extract (use "." if it's the whole repo)
 # output_path = "/path/to/where/you/want/the/public_version"    # REQUIRED: Directory where the clean OSS version will be created
-# public_repo_url = "git@github.com:your-username/my-cool-library.git" # Optional: URL for the public remote repo
-# history_mode = "clean-slate" # Optional: "clean-slate" (default) or "preserve" (requires git-filter-repo)
+# public_repo_url = "git@github.com:your-username/my_cool_library.git" # Optional: URL for the public remote repo
+# history_mode = "clean_slate" # Optional: "clean_slate" (default) or "preserve" (requires git-filter-repo)
 # license = "MIT" # Optional: License for this specific project (overrides default_license)
 "#;
 
