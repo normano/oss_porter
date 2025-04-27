@@ -2,6 +2,17 @@
 name = "oss_porter_core"
 version = "0.1.0"
 edition = "2021"
+publish = ["https://crates.io"]
+
+description = "Core library for OSS Porter: Provides logic for Git operations, state management, extraction, and updates."
+authors = ["Norm O <normo.pub@gmail.com>"]
+license = "MPL-2.0"
+repository = "https://github.com/normano/oss_porter"
+homepage = "https://github.com/normano/oss_porter"
+readme = "README.md"
+keywords = ["git", "repository", "sync", "extract"]
+categories = ["development-tools", "filesystem", "version-control"]
+documentation = "https://docs.rs/oss_porter_core"
 
 [lib]
 # crate-type = ["cdylib", "staticlib"] # Add later if needed for FFI

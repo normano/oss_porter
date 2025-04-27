@@ -2,9 +2,19 @@
 name = "oss_porter_cli"
 version = "0.1.0"
 edition = "2021"
+publish = ["https://crates.io"]
+
+description = "Command-line interface for OSS Porter: A tool to extract and sync projects from internal to public Git repositories."
+authors = ["Norm O <normo.pub@gmail.com>"]
+license = "MPL-2.0"
+repository = "https://github.com/normano/oss_porter"
+homepage = "https://github.com/normano/oss_porter"
+readme = "README.md"
+keywords = ["git", "repository", "open-source", "sync", "extract"]
+categories = ["command-line-utilities", "development-tools::build-utils"]
 
 [[bin]]
-name = "oss-porter" # Define the executable name
+name = "oss-porter"
 path = "src/main.rs"
 
 [dependencies]

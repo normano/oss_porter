@@ -1,0 +1,44 @@
+# Default location: ~/.oss-porter.toml
+# Main configuration for the oss-porter tool.
+
+# Optional global settings
+[settings]
+default_license = "Apache-2.0"  # Default license if not specified per project
+
+# --- Project Definitions ---
+
+[projects.my-cool-library]
+# This project is a library within a larger monorepo.
+# We want to extract it cleanly without internal history.
+internal_repo_path = "/home/dev/work/internal-monorepo" # Path to the ROOT of the internal git repo
+project_subdir = "libs/my-cool-library"                # Path RELATIVE to internal_repo_path
+output_path = "/home/dev/oss/public-my-cool-library"   # Where the public version will live locally
+public_repo_url = "git@github.com:my-org/my-cool-library.git" # Target public repo URL
+history_mode = "clean_slate" # Default, but explicit here
+license = "MIT"              # Override default license for this specific library
+internal_branch = "main"     # Track the 'main' branch internally
+public_branch = "main"       # Push to the 'main' branch publicly
+
+
+[projects.widget-service]
+# This project is a service, also in the monorepo.
+# We want to try preserving its history and use different branches.
+internal_repo_path = "/home/dev/work/internal-monorepo"
+project_subdir = "services/widget-svc"
+output_path = "/home/dev/oss/widget-service-public"
+public_repo_url = "git@gitlab.com:our-team/widget-service.git"
+history_mode = "preserve"      # Attempt history preservation (needs git-filter-repo)
+internal_branch = "develop"    # Track internal 'develop' branch for updates
+public_branch = "master"       # Push to public 'master' branch
+# Uses the default license "Apache-2.0" from [settings]
+
+
+[projects.legacy-tool]
+# This tool is in its own older repository. We sync the whole repo.
+internal_repo_path = "/home/dev/archive/old-legacy-tool"
+project_subdir = "." # Sync the entire repository root
+output_path = "/home/dev/oss/legacy-tool-oss"
+# No public_repo_url defined yet, cannot use `push` command for this one yet.
+history_mode = "clean_slate" # Start fresh for OSS version
+# Uses default license
+# Uses default branches "main"
