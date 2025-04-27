@@ -1,8 +1,8 @@
 use crate::{ConfigFile, PorterError, Result};
-use directories::{ProjectDirs, UserDirs};
+use directories::UserDirs;
+use log::info;
 use std::{
-  fs,
-  path::{Path, PathBuf},
+  fs, io::Write, path::{Path, PathBuf}
 };
 
 // Helper function to get the expected config file path
@@ -46,8 +46,32 @@ pub fn load_config(path_override: Option<&Path>) -> Result<ConfigFile> {
     }
     Err(e) => {
       // Other I/O errors
-      Err(PorterError::Io(e))
+      Err(PorterError::Io { source: e, path: config_path.clone() })
     }
   }
 }
-// Add function to save config later if needed for `config add/remove`
+
+pub fn save_config(config: &ConfigFile, path_override: Option<&Path>) -> Result<()> {
+  let config_path = match path_override {
+      Some(p) => p.to_path_buf(),
+      None => get_default_config_path()?,
+  };
+  log::debug!("Attempting to save configuration to: {}", config_path.display());
+
+  // Ensure parent directory exists
+  if let Some(parent_dir) = config_path.parent() {
+      fs::create_dir_all(parent_dir)
+         .map_err(|e| PorterError::Io { source: e, path: parent_dir.to_path_buf() })?;
+  }
+
+  let toml_string = toml::to_string_pretty(config)?; // Use pretty format
+
+  // Write atomically if possible (e.g., write to temp then rename) - simplified here
+  let mut file = fs::File::create(&config_path)
+       .map_err(|e| PorterError::Io { source: e, path: config_path.clone() })?;
+  file.write_all(toml_string.as_bytes())
+       .map_err(|e| PorterError::Io { source: e, path: config_path.clone() })?;
+
+  info!("Successfully saved configuration to {}", config_path.display());
+  Ok(())
+}

@@ -2,6 +2,9 @@ pub mod check;
 pub mod config;
 pub mod extract;
 pub mod remote;
+pub mod state;
+pub mod update;
+pub mod utils;
 
 use std::path::PathBuf;
 
@@ -16,35 +19,48 @@ pub enum PorterError {
   Config(String),
   #[error("Configuration file not found at path: {0}\nConsider running `oss-porter config init` to create a default file.")]
   ConfigNotFound(PathBuf),
-  #[error("I/O Error: {0}")]
-  Io(#[from] std::io::Error),
-  #[error("Filesystem Extra Error: {0}")]
+  #[error("I/O Error accessing '{path}': {source}")] // Add path context
+  Io {
+    #[source]
+    source: std::io::Error,
+    path: PathBuf,
+  },
+  #[error("Filesystem operation failed: {0}")] // Keep FsExtra general
   FsExtra(#[from] fs_extra::error::Error),
-  #[error("Git command failed: {cmd}\nStdout: {stdout}\nStderr: {stderr}")]
+  #[error("Git command failed.\n Command: {cmd}\n CWD: {cwd}\n Status: {status}\n Stdout: {stdout}\n Stderr: {stderr}")]
   GitCommand {
+    // Add CWD and status
     cmd: String,
+    cwd: PathBuf,   // Add working directory context
+    status: String, // Add exit status
     stdout: String,
     stderr: String,
   },
   #[error("Git operation failed: {0}")]
   GitOperation(String),
-  #[error("Project path not found: {0}")]
+  #[error("Required path not found: {0}")] // Slightly clearer than 'Project path'
   PathNotFound(PathBuf),
   #[error("Output path already exists and is not empty: {0}")]
   OutputPathExists(PathBuf),
-  #[error("Required tool '{0}' not found in PATH")]
+  #[error("Required external tool '{0}' not found in PATH. Please install it.")] // Add hint
   ToolNotFound(String),
-  #[error("Secrets detected: {0}")] // Keep simple initially
-  SecretsFound(String),
-  #[error("Internal path dependency detected: {0}")]
-  InternalDependency(String),
-  #[error("TOML parsing error: {0}")]
-  TomlParse(#[from] toml::de::Error),
-  #[error("TOML serialization error: {0}")]
+  #[error("Secrets Scan Warning: {0}")] // Rephrase as warning? Or keep as error? TBD
+  SecretsFound(String), // Maybe change this later based on policy
+  #[error("Dependency Check Warning: {0}")] // Rephrase as warning
+  InternalDependency(String), // Maybe change this later
+  #[error("Failed to parse TOML file '{path}': {source}")] // Add path context
+  TomlParse {
+    #[source]
+    source: toml::de::Error,
+    path: PathBuf,
+  },
+  #[error("Failed to serialize TOML data: {0}")] // Serialization usually isn't path specific
   TomlSerialize(#[from] toml::ser::Error),
-  #[error("Temporary directory error: {0}")]
-  TempDir(std::io::Error),
-  // Add more specific errors as needed
+  #[error("Failed to create/access temporary directory: {source}")] // Specific source
+  TempDir {
+    #[source]
+    source: std::io::Error,
+  },
 }
 
 // Define a type alias for Result using our custom error
@@ -65,6 +81,11 @@ pub enum HistoryMode {
   Preserve,
 }
 
+// Helper function for default branch name
+fn default_branch() -> String {
+  "main".to_string()
+}
+
 #[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct ProjectConfig {
   pub internal_repo_path: PathBuf,
@@ -75,6 +96,12 @@ pub struct ProjectConfig {
   pub history_mode: HistoryMode,
   pub license: Option<String>, // Specific license for this project
                                // Add tags, description etc. later if needed
+  // New Branch Configuration
+  #[serde(default = "default_branch")] // Use helper for default value "main"
+  pub internal_branch: String, // Branch to track in the internal repo for updates
+
+  #[serde(default = "default_branch")] // Use helper for default value "main"
+  pub public_branch: String,   // Branch to push to in the public repo
 }
 
 #[derive(Deserialize, Serialize, Debug, Clone, Default)]

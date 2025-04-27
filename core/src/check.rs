@@ -1,9 +1,9 @@
 use crate::extract::scan_secrets_basic; // Reuse the secrets scan helper
 use crate::{CheckResult, PorterError, ProjectConfig, Result}; // Added CheckResult, ProjectConfig
-use cargo_toml::{Dependency, DependencyDetail, Manifest};
+use cargo_toml::{Dependency, Manifest};
 use log::{debug, info, warn};
 use std::fs;
-use std::path::{Path, PathBuf}; // Needed for path canonicalization
+use std::path::Path; // Needed for path canonicalization
 
 /// Checks a Cargo.toml manifest for path dependencies pointing outside the project directory.
 fn check_internal_dependencies(output_path: &Path) -> Result<Vec<String>> {
@@ -28,7 +28,7 @@ fn check_internal_dependencies(output_path: &Path) -> Result<Vec<String>> {
   })?;
 
   // Canonicalize output path for reliable comparison
-  let canonical_output_path = fs::canonicalize(output_path)?;
+  let canonical_output_path = fs::canonicalize(output_path).map_err(|err| PorterError::Io { source: err, path: output_path.to_path_buf() })?;
 
   let mut check_dep = |name: &str, dep: &Dependency, section: &str| -> Result<()> {
     if let Dependency::Detailed(details) = dep {
@@ -106,7 +106,8 @@ pub fn check_project(project_id: &str, config: &ProjectConfig) -> Result<CheckRe
   let internal_deps = check_internal_dependencies(&config.output_path)?;
 
   // Check for license file existence
-  let license_exists = fs::read_dir(&config.output_path)?
+  let license_exists = fs::read_dir(&config.output_path)
+    .map_err(|err| PorterError::Io { source: err, path: config.output_path.to_path_buf() })?
     .filter_map(|entry| entry.ok())
     .any(|entry| {
       let file_name = entry.file_name().to_string_lossy().to_lowercase();

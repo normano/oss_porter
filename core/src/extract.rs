@@ -1,11 +1,8 @@
-use crate::{ExtractionResult, HistoryMode, PorterError, ProjectConfig, Result};
-use fs_extra::dir::{
-  copy as copy_dir, move_dir, CopyOptions, TransitProcess, TransitProcessResult,
-}; // Added move_dir, Transit*
+use crate::{state::STATE_FILE_NAME, ExtractionResult, PorterError, ProjectConfig, Result};
+use fs_extra::dir::{copy as copy_dir, move_dir, CopyOptions}; // Added move_dir, Transit*
 use log::{debug, error, info, warn};
 use regex::Regex;
 use std::{
-  ffi::OsStr, // For check_tool_exists
   fs,
   path::{Path, PathBuf},
   process::{Command, Output, Stdio}, // Added Stdio
@@ -26,7 +23,10 @@ fn check_tool_exists(tool_name: &str) -> Result<()> {
       if e.kind() == std::io::ErrorKind::NotFound {
         PorterError::ToolNotFound(tool_name.to_string())
       } else {
-        PorterError::Io(e)
+        PorterError::Io {
+          source: e,
+          path: PathBuf::new(),
+        }
       }
     })?; // Check if the command even starts
   Ok(())
@@ -45,7 +45,11 @@ fn run_command_capture(cmd_name: &str, args: &[&str], cwd: &Path) -> Result<Outp
   let output = Command::new(cmd_name)
     .args(args)
     .current_dir(cwd)
-    .output()?; // Propagates std::io::Error as PorterError::Io
+    .output()
+    .map_err(|err| PorterError::Io {
+      source: err,
+      path: cwd.to_path_buf(),
+    })?; // Propagates std::io::Error as PorterError::Io
 
   if !output.status.success() {
     let stdout = String::from_utf8_lossy(&output.stdout).to_string();
@@ -56,6 +60,8 @@ fn run_command_capture(cmd_name: &str, args: &[&str], cwd: &Path) -> Result<Outp
     // Provide a slightly more specific error type if desired
     return Err(PorterError::GitCommand {
       cmd: cmd_str,
+      cwd: cwd.to_path_buf(),
+      status: output.status.to_string(),
       stdout,
       stderr,
     }); // Reusing GitCommand for general command failures
@@ -124,7 +130,10 @@ fn add_license_file(license_id: Option<&str>, output_path: &Path) -> Result<()> 
       info!("Adding license file for {} (placeholder)", id);
       // Placeholder content - replace with actual license text fetching later
       let content = format!("Placeholder for {} License Text.", id);
-      fs::write(&license_path, content)?;
+      fs::write(&license_path, content).map_err(|err| PorterError::Io {
+        source: err,
+        path: license_path.to_path_buf(),
+      })?;
       info!("Created license file: {}", license_path.display());
     } else {
       info!("License file already exists, skipping creation.");
@@ -140,7 +149,10 @@ fn ensure_gitignore(output_path: &Path) -> Result<()> {
     info!("Creating basic .gitignore file.");
     // Basic Rust gitignore - enhance later
     let content = "/target\nCargo.lock\n";
-    fs::write(gitignore_path, content)?;
+    fs::write(&gitignore_path, content).map_err(|err| PorterError::Io {
+      source: err,
+      path: gitignore_path.to_path_buf(),
+    })?;
   } else {
     info!(".gitignore file already exists.");
     // Future enhancement: check if it contains essential rules like /target
@@ -163,11 +175,22 @@ pub fn extract_clean_slate(project_id: &str, config: &ProjectConfig) -> Result<E
   if !source_path.exists() {
     return Err(PorterError::PathNotFound(source_path));
   }
-  if config.output_path.exists() && fs::read_dir(&config.output_path)?.next().is_some() {
+  if config.output_path.exists()
+    && fs::read_dir(&config.output_path)
+      .map_err(|err| PorterError::Io {
+        source: err,
+        path: config.output_path.to_path_buf(),
+      })?
+      .next()
+      .is_some()
+  {
     // Check if directory exists and is not empty
     return Err(PorterError::OutputPathExists(config.output_path.clone()));
   } else if !config.output_path.exists() {
-    fs::create_dir_all(&config.output_path)?;
+    fs::create_dir_all(&config.output_path).map_err(|err| PorterError::Io {
+      source: err,
+      path: config.output_path.to_path_buf(),
+    })?;
     info!("Created output directory: {}", config.output_path.display());
   }
 
@@ -187,6 +210,19 @@ pub fn extract_clean_slate(project_id: &str, config: &ProjectConfig) -> Result<E
     "Copied project files from {}",
     source_path.display()
   ));
+
+  // 2b. Explicitly remove state file from output path after copying
+  let state_file_in_output = config.output_path.join(STATE_FILE_NAME);
+  if state_file_in_output.exists() {
+    info!(
+      "Removing internal state file '{}' from clean slate output.",
+      STATE_FILE_NAME
+    );
+    fs::remove_file(&state_file_in_output).map_err(|e| PorterError::Io {
+      source: e,
+      path: state_file_in_output,
+    })?;
+  }
 
   // 3. Initialize Git repo
   info!(
@@ -265,15 +301,26 @@ pub fn extract_preserve_history(
       source_repo_path.join(project_subdir_relative),
     ));
   }
-  if config.output_path.exists() && fs::read_dir(&config.output_path)?.next().is_some() {
+  if config.output_path.exists()
+    && fs::read_dir(&config.output_path)
+      .map_err(|err| PorterError::Io {
+        source: err,
+        path: config.output_path.to_path_buf(),
+      })?
+      .next()
+      .is_some()
+  {
     return Err(PorterError::OutputPathExists(config.output_path.clone()));
   } else if !config.output_path.exists() {
-    fs::create_dir_all(&config.output_path)?;
+    fs::create_dir_all(&config.output_path).map_err(|err| PorterError::Io {
+      source: err,
+      path: config.output_path.to_path_buf(),
+    })?;
     info!("Created output directory: {}", config.output_path.display());
   }
 
   // 3. Create Temporary Clone
-  let temp_dir = TempDir::new().map_err(PorterError::TempDir)?;
+  let temp_dir = TempDir::new().map_err(|source| PorterError::TempDir { source })?;
   let temp_clone_path = temp_dir.path();
   info!(
     "Creating temporary clone of {} in {}",
@@ -326,6 +373,42 @@ pub fn extract_preserve_history(
   ));
 
   // TempDir is dropped here, cleaning up the empty temp directory
+
+  // 5b. Explicitly remove state file from output path if it exists
+  let state_file_in_output = config.output_path.join(STATE_FILE_NAME);
+  if state_file_in_output.exists() {
+    warn!(
+      "Removing internal state file '{}' found in output path after filtering.",
+      STATE_FILE_NAME
+    );
+    fs::remove_file(&state_file_in_output).map_err(|e| PorterError::Io {
+      source: e,
+      path: state_file_in_output.clone(),
+    })?;
+    // Need to commit this removal if the repo isn't empty
+    match run_git_command(&["rev-parse", "--verify", "HEAD"], &config.output_path) {
+      Ok(_) => {
+        // Repo has commits, commit the removal
+        info!("Committing removal of internal state file from output repository.");
+        // Use the actual state file name constant here
+        run_git_command(&["add", STATE_FILE_NAME], &config.output_path)?;
+        run_git_command(
+          &["commit", "-m", "chore: Remove internal sync state file"],
+          &config.output_path,
+        )?;
+        messages.push(format!(
+          "Committed removal of internal state file '{}' from output.",
+          STATE_FILE_NAME
+        ));
+      }
+      Err(_) => {
+        // Repo might be empty after filtering, no commit needed (or possible)
+        info!(
+          "Output repository is empty after filtering, removal of state file doesn't need commit."
+        );
+      }
+    }
+  }
 
   // 6. Post-Filtering Checks & Cleanup in Output Repo
   info!(
