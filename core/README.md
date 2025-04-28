@@ -4,7 +4,7 @@ This crate provides the foundational logic and functionality for the `oss-porter
 
 ## Purpose
 
-This library is primarily consumed by the `oss-porter-cli` binary crate and potentially other frontends (like a GUI). It encapsulates the core operations in a reusable way. While it can be used directly in other Rust applications needing similar functionality, its API is mainly tailored to the needs of `oss-porter`.
+This library is primarily consumed by the `oss_porter_cli` binary crate and potentially other frontends (like a GUI). It encapsulates the core operations in a reusable way. While it can be used directly in other Rust applications needing similar functionality, its API is mainly tailored to the needs of `oss-porter`.
 
 ## Modules
 

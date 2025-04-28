@@ -23,7 +23,7 @@ cargo install oss-porter
 
 Alternatively, to build and run directly for development, navigate to the project root and use:
 ```bash
-cargo run -p oss-porter-cli -- --help
+cargo run -p oss_porter_cli -- --help
 ```
 
 ## Prerequisites
